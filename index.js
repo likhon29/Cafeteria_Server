@@ -22,11 +22,8 @@ async function run() {
   try {
     const userCollection = client.db("JU-cafe").collection("userCollection");
 
-    app.post("/addUser", async (req, res) => {
-      const user = {
-        name: "Likhon1",
-        dept: "IIT2",
-      };
+    app.post("/users", async (req, res) => {
+      const user = req.body;
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
