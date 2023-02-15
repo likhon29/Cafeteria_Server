@@ -20,11 +20,39 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    const userCollection = client.db("JU-cafe").collection("userCollection");
+    const usersCollection = client.db("JU-cafe").collection("userCollection");
+    const adminCollection = client.db("JU-cafe").collection("adminCollection");
+
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await userCollection.findOne(query);
+
+      if (user?.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+    app.get("/users", async (req, res) => {
+      const query = {};
+      const users = await usersCollection.find(query).toArray();
+      res.send(users);
+    });
+    app.get("/users/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isAdmin: user?.role === "admin" });
+    });
 
     app.post("/users", async (req, res) => {
       const user = req.body;
-      const result = await userCollection.insertOne(user);
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+    app.post("/admin", async (req, res) => {
+      const user = req.body;
+      const result = await adminCollection.insertOne(user);
       res.send(result);
     });
   } finally {
