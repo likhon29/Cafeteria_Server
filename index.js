@@ -21,6 +21,10 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const usersCollection = client.db("JU-cafe").collection("userCollection");
+    const foodCollection = client.db("JU-cafe").collection("foodCollection");
+    const ordersCollection = client
+      .db("JU-cafe")
+      .collection("ordersCollection");
     const adminCollection = client.db("JU-cafe").collection("adminCollection");
 
     const verifyAdmin = async (req, res, next) => {
@@ -33,11 +37,21 @@ async function run() {
       }
       next();
     };
+
+    //get all users
+
     app.get("/users", async (req, res) => {
       const query = {};
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
+    // get customer
+    app.get("/allCustomer", async (req, res) => {
+      const query = { role: "customer" };
+      const users = await usersCollection.find(query).toArray();
+      res.send(users);
+    });
+    //check admin user
     app.get("/users/admin/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
@@ -45,14 +59,52 @@ async function run() {
       res.send({ isAdmin: user?.role === "admin" });
     });
 
+    // save user info
     app.post("/users", async (req, res) => {
       const user = req.body;
       const result = await usersCollection.insertOne(user);
       res.send(result);
     });
+
+    // get admin user
+    app.get("/admin", async (req, res) => {
+      const query = { role: "customer" };
+      const users = await usersCollection.find(query).toArray();
+      res.send(users);
+    });
+    // create admin
     app.post("/admin", async (req, res) => {
       const user = req.body;
       const result = await adminCollection.insertOne(user);
+      res.send(result);
+    });
+    // get food item list
+    app.get("/food", async (req, res) => {
+      const query = {};
+      const users = await foodCollection.find(query).toArray();
+      res.send(users);
+    });
+    //  all order of a particular user
+    app.get("/orders", async (req, res) => {
+      const email = req.query.email;
+      
+
+      const query = {
+        customerEmail: email,
+      };
+      // console.log(query);
+      const orders = await ordersCollection.find(query).toArray();
+      res.send(orders);
+    });
+    // get a particular order of user
+
+   
+    // food order
+
+    app.post("/orders", async (req, res) => {
+      const orders = req.body;
+
+      const result = await ordersCollection.insertOne(orders);
       res.send(result);
     });
   } finally {
