@@ -26,13 +26,24 @@ async function run() {
       .db("JU-cafe")
       .collection("ordersCollection");
     const adminCollection = client.db("JU-cafe").collection("adminCollection");
-
+    // verify admin user
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
       const query = { email: decodedEmail };
       const user = await userCollection.findOne(query);
 
       if (user?.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+    // verify customer user
+    const verifyCustomer = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await userCollection.findOne(query);
+
+      if (user?.role !== "customer") {
         return res.status(403).send({ message: "forbidden access" });
       }
       next();
@@ -45,11 +56,40 @@ async function run() {
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
-    // get customer
+    // get customers
     app.get("/allCustomer", async (req, res) => {
       const query = { role: "customer" };
       const users = await usersCollection.find(query).toArray();
       res.send(users);
+    });
+
+    // check customer
+    app.get("/users/customer/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isCustomer: user?.role === "customer" });
+    });
+    // check manager
+    app.get("/users/manager/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isManager: user?.role === "manager" });
+    });
+    // check cashier
+    app.get("/users/cashier/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isCashier: user?.role === "cashier" });
+    });
+    // check deliveryman
+    app.get("/users/deliveryman/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isDeliveryMan: user?.role === "deliveryMan" });
     });
     //check admin user
     app.get("/users/admin/:email", async (req, res) => {
@@ -87,7 +127,6 @@ async function run() {
     //  all order of a particular user
     app.get("/orders", async (req, res) => {
       const email = req.query.email;
-      
 
       const query = {
         customerEmail: email,
@@ -98,7 +137,6 @@ async function run() {
     });
     // get a particular order of user
 
-   
     // food order
 
     app.post("/orders", async (req, res) => {
