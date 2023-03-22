@@ -2,12 +2,12 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
-require("dotenv").config();
 const SSLCommerzPayment = require("sslcommerz-lts");
+require("dotenv").config();
 const store_id = process.env.STORE_ID;
-const store_passwd = process.env.STORE_PASSWD;
+const store_passwd = process.env.STORE_PASSWORD;
 const is_live = false;
-
+console.log(store_id, store_passwd, is_live);
 const port = process.env.PORT || 5000;
 
 const app = express();
@@ -166,9 +166,6 @@ async function run() {
       res.send(orders);
     });
 
-
-
-
     app.delete("/reservation/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
@@ -179,60 +176,67 @@ async function run() {
     // food order
 
     app.post("/orders", async (req, res) => {
-      const orders = req.body;
-      const result = await ordersCollection.insertOne(orders);
-      res.send(result);
+      const order = req.body;
+
+      const transactionId = new ObjectId().toString();
+      const data = {
+        total_amount: order.price,
+        currency: "BDT",
+        tran_id: transactionId, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/payment/success?transactionId=${transactionId}`,
+        fail_url: "http://localhost:3030/fail",
+        cancel_url: "http://localhost:3030/cancel",
+        ipn_url: "http://localhost:3030/ipn",
+        shipping_method: "Courier",
+        product_name: "Food Items",
+        product_category: "food",
+        product_profile: "Regular",
+        cus_name: order.customName,
+        cus_email: order.customerEmail,
+        cus_add1: order.shippingAddress,
+        cus_add2: "JU",
+        cus_city: "JU",
+        cus_state: "JU",
+        cus_postcode: "1000",
+        cus_country: "Bangladesh",
+        cus_phone: order.customerPhone,
+        cus_fax: order.customerPhone,
+        ship_name: order.customerName,
+        ship_add1: order.shippingAddress,
+        ship_add2: "Dhaka",
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: 1000,
+        ship_country: "Bangladesh",
+      };
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      sslcz.init(data).then((apiResponse) => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.send({ url: GatewayPageURL });
+      });
+
+      const result = await ordersCollection.insertOne({
+        ...order,
+        transactionId,
+        paid: false,
+      });
+      // res.send(result);
     });
 
+    //success route
+    app.post("/payment/success", async (req, res) => {
+      const { transactionId } = req.query;
+      const result = await ordersCollection.updateOne(
+        { transactionId },
+        { $set:{paid: true, paidAt: new Date()} }
+      );
 
-//sslcommerz init
-app.post('/init',async (req, res) => {
-  const order=req.body;
-
-  const bookingInfo = await bookingCollection.findOne({_id:new ObjectId(order.id)})
-
-  console.log(bookingInfo)
-  const data = {
-      total_amount: 100,
-      currency: 'BDT',
-      tran_id: 'REF123', // use unique tran_id for each api call
-      success_url: 'http://localhost:3030/success',
-      fail_url: 'http://localhost:3030/fail',
-      cancel_url: 'http://localhost:3030/cancel',
-      ipn_url: 'http://localhost:3030/ipn',
-      shipping_method: 'Courier',
-      product_name: 'Computer.',
-      product_category: 'Electronic',
-      product_profile: 'general',
-      cus_name: 'Customer Name',
-      cus_email: 'customer@example.com',
-      cus_add1: 'Dhaka',
-      cus_add2: 'Dhaka',
-      cus_city: 'Dhaka',
-      cus_state: 'Dhaka',
-      cus_postcode: '1000',
-      cus_country: 'Bangladesh',
-      cus_phone: '01711111111',
-      cus_fax: '01711111111',
-      ship_name: 'Customer Name',
-      ship_add1: 'Dhaka',
-      ship_add2: 'Dhaka',
-      ship_city: 'Dhaka',
-      ship_state: 'Dhaka',
-      ship_postcode: 1000,
-      ship_country: 'Bangladesh',
-  };
-  const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
-  sslcz.init(data).then(apiResponse => {
-      // Redirect the user to payment gateway
-      let GatewayPageURL = apiResponse.GatewayPageURL
-      res.redirect(GatewayPageURL)
-      console.log('Redirecting to: ', GatewayPageURL)
-  });
-})
-
-    
-
+      if(result.modifiedCount>0)
+      {
+        res.redirect(`http://localhost:3000/dashboard/payment/success?transactionID=${transactionId}`)
+      }
+    });
   } finally {
   }
 }
