@@ -132,6 +132,13 @@ async function run() {
       const users = await foodCollection.find(query).toArray();
       res.send(users);
     });
+    // all orders of the system
+    app.get("/orders", async (req, res) => {
+      const query = {};
+      // console.log(query);
+      const orders = await ordersCollection.find(query).toArray();
+      res.send(orders);
+    });
     //  all order of a particular user
     app.get("/orders", async (req, res) => {
       const email = req.query.email;
@@ -164,6 +171,60 @@ async function run() {
       // console.log(query);
       const orders = await bookingCollection.find(query).toArray();
       res.send(orders);
+    });
+
+    // booking-payment
+    app.post("/booking-payment", async (req, res) => {
+      const bookingId = req.body;
+      const bookingInfo = await bookingCollection.findOne({
+        _id: new ObjectId(bookingId),
+      });
+      const transactionId = new ObjectId().toString();
+      const data = {
+        total_amount: bookingInfo.price,
+        currency: "BDT",
+        tran_id: transactionId, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/payment/success?transactionId=${transactionId}`,
+        fail_url: "http://localhost:3030/fail",
+        cancel_url: "http://localhost:3030/cancel",
+        ipn_url: "http://localhost:3030/ipn",
+        shipping_method: "Courier",
+        product_name: "Food Items",
+        product_category: "Reservation",
+        product_profile: "Regular",
+        cus_name: bookingInfo?.customerName,
+        cus_email: bookingInfo?.customerEmail,
+        cus_add1: bookingInfo?.shippingAddress,
+        cus_add2: "JU",
+        cus_city: "JU",
+        cus_state: "JU",
+        cus_postcode: "1000",
+        cus_country: "Bangladesh",
+        cus_phone: bookingInfo?.customerPhone,
+        cus_fax: bookingInfo?.customerPhone,
+        ship_name: bookingInfo?.customerName,
+        // ship_add1: bookingInfo?.shippingAddress,
+        ship_add2: "Dhaka",
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: 1000,
+        ship_country: "Bangladesh",
+      };
+      console.log(data);
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      sslcz.init(data).then((apiResponse) => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        console.log(GatewayPageURL);
+        res.send({ url: GatewayPageURL });
+      });
+
+      // const result = await ordersCollection.insertOne({
+      //   ...bookingInfo,
+      //   transactionId,
+      //   paid: false,
+      // });
+      // res.send(result);
     });
 
     app.delete("/reservation/:id", async (req, res) => {
@@ -229,12 +290,13 @@ async function run() {
       const { transactionId } = req.query;
       const result = await ordersCollection.updateOne(
         { transactionId },
-        { $set:{paid: true, paidAt: new Date()} }
+        { $set: { paid: true, paidAt: new Date() } }
       );
 
-      if(result.modifiedCount>0)
-      {
-        res.redirect(`http://localhost:3000/dashboard/payment/success?transactionID=${transactionId}`)
+      if (result.modifiedCount > 0) {
+        res.redirect(
+          `http://localhost:3000/dashboard/payment/success?transactionID=${transactionId}`
+        );
       }
     });
   } finally {
