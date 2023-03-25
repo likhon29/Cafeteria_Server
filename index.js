@@ -7,7 +7,6 @@ require("dotenv").config();
 const store_id = process.env.STORE_ID;
 const store_passwd = process.env.STORE_PASSWORD;
 const is_live = false;
-console.log(store_id, store_passwd, is_live);
 const port = process.env.PORT || 5000;
 
 const app = express();
@@ -132,6 +131,12 @@ async function run() {
       const users = await foodCollection.find(query).toArray();
       res.send(users);
     });
+
+    app.post("/add-food",async(req, res) => {
+      const foodInfo = req.body;
+      const result = await foodCollection.insertOne(foodInfo);
+      res.send(result);
+    })
     // all orders of the system
     app.get("/orders", async (req, res) => {
       const query = {};
