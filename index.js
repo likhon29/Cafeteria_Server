@@ -128,15 +128,30 @@ async function run() {
     // get food item list
     app.get("/food", async (req, res) => {
       const query = {};
-      const users = await foodCollection.find(query).toArray();
-      res.send(users);
+      const foods = await foodCollection.find(query).toArray();
+      res.send(foods);
+    });
+    app.get("/food/title/:title", async (req, res) => {
+      const title = req.params.title;
+      const query = { title };
+      const foods = await foodCollection.find(query).toArray();
+      res.send(foods);
     });
 
-    app.post("/add-food",async(req, res) => {
+    // get foods by type
+
+    app.get("/food/:type", async (req, res) => {
+      const type = req.params.type;
+      const query = { type: type };
+      const foods = await foodCollection.find(query).toArray();
+      res.send(foods);
+    });
+
+    app.post("/add-food", async (req, res) => {
       const foodInfo = req.body;
       const result = await foodCollection.insertOne(foodInfo);
       res.send(result);
-    })
+    });
     // all orders of the system
     app.get("/orders", async (req, res) => {
       const query = {};
@@ -147,7 +162,7 @@ async function run() {
     //  all order of a particular user
     app.get("/orders", async (req, res) => {
       const email = req.query.email;
-
+      console.log(email);
       const query = {
         customerEmail: email,
       };
@@ -155,8 +170,16 @@ async function run() {
       const orders = await ordersCollection.find(query).toArray();
       res.send(orders);
     });
-    // get a particular order of user
-
+    // get all order of user
+    app.get("/orders/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = {
+        customerEmail: email,
+      };
+      // console.log(query);
+      const orders = await ordersCollection.find(query).toArray();
+      res.send(orders);
+    });
     // reservations
 
     app.post("/reservations", async (req, res) => {
@@ -168,7 +191,7 @@ async function run() {
     //  all reservation of a particular user
     app.get("/reservations", async (req, res) => {
       const email = req.query.email;
-
+      console.log(email);
       const query = {
         customerEmail: email,
       };
@@ -180,7 +203,7 @@ async function run() {
 
     // booking-payment
     app.post("/booking-payment", async (req, res) => {
-      const bookingId = req.body;
+      const bookingId = req.body.id;
       const bookingInfo = await bookingCollection.findOne({
         _id: new ObjectId(bookingId),
       });
@@ -194,7 +217,7 @@ async function run() {
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
-        product_name: "Food Items",
+        product_name: "Cafe Reservation",
         product_category: "Reservation",
         product_profile: "Regular",
         cus_name: bookingInfo?.customerName,
@@ -208,25 +231,28 @@ async function run() {
         cus_phone: bookingInfo?.customerPhone,
         cus_fax: bookingInfo?.customerPhone,
         ship_name: bookingInfo?.customerName,
-        // ship_add1: bookingInfo?.shippingAddress,
+        ship_add1: "Dhaka",
         ship_add2: "Dhaka",
         ship_city: "Dhaka",
         ship_state: "Dhaka",
         ship_postcode: 1000,
         ship_country: "Bangladesh",
       };
-      console.log(data);
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
       sslcz.init(data).then((apiResponse) => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL;
-        console.log(GatewayPageURL);
         res.send({ url: GatewayPageURL });
       });
 
-      // const result = await ordersCollection.insertOne({
-      //   ...bookingInfo,
-      //   transactionId,
+      const result = await bookingCollection.updateOne(
+        { bookingId },
+        { $set: { paid: false, transactionId } }
+      );
+
+      // const result = await bookingCollection.updateOne({
+
+      //   ,
       //   paid: false,
       // });
       // res.send(result);
