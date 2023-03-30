@@ -147,6 +147,27 @@ async function run() {
       res.send(foods);
     });
 
+  //   app.get('/bookingSlots', async (req, res) => {
+  //     const date = req.query.date;
+  //     const query = {};
+  //     const options = ['afternoon','evening']
+
+  //     // get the bookings of the provided date
+  //     const bookingQuery = { reservationDate: date }
+  //     const alreadyBooked = await bookingCollection.find(bookingQuery).toArray();
+  //     console.log(alreadyBooked)
+  //     // code carefully :D
+  //     options.forEach(option => {
+  //         const optionBooked = alreadyBooked.filter(book => book.slot === option);
+  //         const bookedSlots = optionBooked.map(book => book.slot);
+  //         const remainingSlots = option.slots.filter(slot => !bookedSlots.includes(slot))
+  //         option.slots = remainingSlots;
+  //     })
+  //     res.send(options);
+  //     console.log(options)
+  // });
+
+
     app.post("/add-food", async (req, res) => {
       const foodInfo = req.body;
       const result = await foodCollection.insertOne(foodInfo);
@@ -160,17 +181,29 @@ async function run() {
       res.send(orders);
     });
     //  all order of a particular user
-    app.get("/orders", async (req, res) => {
-      const email = req.query.email;
-      console.log(email);
+    // app.get("/orders", async (req, res) => {
+    //   const email = req.query.email;
+    //   console.log(email);
+    //   const query = {
+    //     customerEmail: email,
+    //   };
+    //   // console.log(query);
+    //   const orders = await ordersCollection.find(query);
+    //   res.send(orders);
+    // });
+    // get all order of user
+    app.get("/order/:id", async (req, res) => {
+      const id = req.params.id;
       const query = {
-        customerEmail: email,
+        _id: new ObjectId(id),
       };
+      console.log(query);
+
       // console.log(query);
-      const orders = await ordersCollection.find(query).toArray();
+      const orders = await ordersCollection.findOne(query);
+      console.log(orders)
       res.send(orders);
     });
-    // get all order of user
     app.get("/orders/:email", async (req, res) => {
       const email = req.params.email;
       const query = {
@@ -183,9 +216,55 @@ async function run() {
     // reservations
 
     app.post("/reservations", async (req, res) => {
-      const reservationInfo = req.body;
-      const result = await bookingCollection.insertOne(reservationInfo);
-      res.send(result);
+      const bookingInfo = req.body;
+      const transactionId = new ObjectId().toString();
+      const data = {
+        total_amount: bookingInfo.price,
+        currency: "BDT",
+        tran_id: transactionId, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/booking-payment/success?transactionId=${transactionId}`,
+        fail_url: "http://localhost:3030/fail",
+        cancel_url: "http://localhost:3030/cancel",
+        ipn_url: "http://localhost:3030/ipn",
+        shipping_method: "Courier",
+        product_name: "Cafe Reservation",
+        product_category: "Reservation",
+        product_profile: "Regular",
+        cus_name: bookingInfo?.customerName,
+        cus_email: bookingInfo?.customerEmail,
+        cus_add1: bookingInfo?.shippingAddress,
+        cus_add2: "JU",
+        cus_city: "JU",
+        cus_state: "JU",
+        cus_postcode: "1000",
+        cus_country: "Bangladesh",
+        cus_phone: bookingInfo?.customerPhone,
+        cus_fax: bookingInfo?.customerPhone,
+        ship_name: bookingInfo?.customerName,
+        ship_add1: "Dhaka",
+        ship_add2: "Dhaka",
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: 1000,
+        ship_country: "Bangladesh",
+      };
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      sslcz.init(data).then((apiResponse) => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.send({ url: GatewayPageURL });
+      });
+
+      // const result = await bookingCollection.updateOne(
+      //   { bookingId },
+      //   { $set: { paid: false, transactionId } }
+      // );
+
+      const result = await bookingCollection.insertOne({
+        ...bookingInfo,
+        transactionId,
+        paid: false,
+      });
     });
 
     //  all reservation of a particular user
@@ -212,7 +291,7 @@ async function run() {
         total_amount: bookingInfo.price,
         currency: "BDT",
         tran_id: transactionId, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/payment/success?transactionId=${transactionId}`,
+        success_url: `http://localhost:5000/booking-payment/success?transactionId=${transactionId}`,
         fail_url: "http://localhost:3030/fail",
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
@@ -320,6 +399,21 @@ async function run() {
     app.post("/payment/success", async (req, res) => {
       const { transactionId } = req.query;
       const result = await ordersCollection.updateOne(
+        { transactionId },
+        { $set: { paid: true, paidAt: new Date() } }
+      );
+
+      if (result.modifiedCount > 0) {
+        res.redirect(
+          `http://localhost:3000/dashboard/payment/success?transactionID=${transactionId}`
+        );
+      }
+    });
+
+    //booking success
+    app.post("/booking-payment/success", async (req, res) => {
+      const { transactionId } = req.query;
+      const result = await bookingCollection.updateOne(
         { transactionId },
         { $set: { paid: true, paidAt: new Date() } }
       );
