@@ -108,9 +108,16 @@ async function run() {
 
     // save user info
     app.post("/users", async (req, res) => {
-      const user = req.body;
-      const result = await usersCollection.insertOne(user);
-      res.send(result);
+      const userInfo = req.body;
+      const query = { email: userInfo.email };
+      console.log(query)
+      const user = await usersCollection.findOne(query);
+      console.log(user);
+      if (!user) {
+        const result = await usersCollection.insertOne(userInfo);
+        res.send(result);
+        console.log(result);
+      }
     });
 
     // get admin user
@@ -147,26 +154,25 @@ async function run() {
       res.send(foods);
     });
 
-  //   app.get('/bookingSlots', async (req, res) => {
-  //     const date = req.query.date;
-  //     const query = {};
-  //     const options = ['afternoon','evening']
+    //   app.get('/bookingSlots', async (req, res) => {
+    //     const date = req.query.date;
+    //     const query = {};
+    //     const options = ['afternoon','evening']
 
-  //     // get the bookings of the provided date
-  //     const bookingQuery = { reservationDate: date }
-  //     const alreadyBooked = await bookingCollection.find(bookingQuery).toArray();
-  //     console.log(alreadyBooked)
-  //     // code carefully :D
-  //     options.forEach(option => {
-  //         const optionBooked = alreadyBooked.filter(book => book.slot === option);
-  //         const bookedSlots = optionBooked.map(book => book.slot);
-  //         const remainingSlots = option.slots.filter(slot => !bookedSlots.includes(slot))
-  //         option.slots = remainingSlots;
-  //     })
-  //     res.send(options);
-  //     console.log(options)
-  // });
-
+    //     // get the bookings of the provided date
+    //     const bookingQuery = { reservationDate: date }
+    //     const alreadyBooked = await bookingCollection.find(bookingQuery).toArray();
+    //     console.log(alreadyBooked)
+    //     // code carefully :D
+    //     options.forEach(option => {
+    //         const optionBooked = alreadyBooked.filter(book => book.slot === option);
+    //         const bookedSlots = optionBooked.map(book => book.slot);
+    //         const remainingSlots = option.slots.filter(slot => !bookedSlots.includes(slot))
+    //         option.slots = remainingSlots;
+    //     })
+    //     res.send(options);
+    //     console.log(options)
+    // });
 
     app.post("/add-food", async (req, res) => {
       const foodInfo = req.body;
@@ -201,7 +207,7 @@ async function run() {
 
       // console.log(query);
       const orders = await ordersCollection.findOne(query);
-      console.log(orders)
+      console.log(orders);
       res.send(orders);
     });
     app.get("/orders/:email", async (req, res) => {
