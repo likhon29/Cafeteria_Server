@@ -63,6 +63,12 @@ async function run() {
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const users = await usersCollection.find(query).toArray();
+      res.send(users);
+    });
     // get customers
     app.get("/allCustomer", async (req, res) => {
       const query = { role: "customer" };
@@ -110,19 +116,22 @@ async function run() {
     app.post("/users", async (req, res) => {
       const userInfo = req.body;
       const query = { email: userInfo.email };
-      console.log(query)
       const user = await usersCollection.findOne(query);
-      console.log(user);
       if (!user) {
         const result = await usersCollection.insertOne(userInfo);
         res.send(result);
-        console.log(result);
       }
     });
 
     // get admin user
     app.get("/admin", async (req, res) => {
       const query = { role: "customer" };
+      const users = await usersCollection.find(query).toArray();
+      res.send(users);
+    });
+
+    app.get("/delivery-man", async (req, res) => {
+      const query = { role: "deliveryMan" };
       const users = await usersCollection.find(query).toArray();
       res.send(users);
     });
@@ -186,6 +195,16 @@ async function run() {
       const orders = await ordersCollection.find(query).toArray();
       res.send(orders);
     });
+
+    app.get("/manager/orders", async (req, res) => {
+      
+      const query = {
+       
+      };
+      const orders = await ordersCollection.find(query).toArray();
+      console.log(orders);
+      res.send(orders);
+    });
     //  all order of a particular user
     // app.get("/orders", async (req, res) => {
     //   const email = req.query.email;
@@ -203,11 +222,9 @@ async function run() {
       const query = {
         _id: new ObjectId(id),
       };
-      console.log(query);
 
       // console.log(query);
       const orders = await ordersCollection.findOne(query);
-      console.log(orders);
       res.send(orders);
     });
     app.get("/orders/:email", async (req, res) => {
@@ -270,13 +287,13 @@ async function run() {
         ...bookingInfo,
         transactionId,
         paid: false,
+        pmr: false,
       });
     });
 
     //  all reservation of a particular user
     app.get("/reservations", async (req, res) => {
       const email = req.query.email;
-      console.log(email);
       const query = {
         customerEmail: email,
       };
@@ -397,10 +414,60 @@ async function run() {
         ...order,
         transactionId,
         paid: false,
+        pmr: false,
+        processed: false,
+        picked: false,
+        delivered: false,
+        shifted: false,
       });
       // res.send(result);
     });
 
+    // update
+
+    app.put("/cashier/orders/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          pmr: true,
+        },
+      };
+      const result = await ordersCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
+
+    // assign delivery man
+
+    app.put("/manager/orders", async (req, res) => {
+      const id = req.query.id;
+      const dm = req.query.dm;
+
+      const userInfo = await usersCollection.findOne({
+        _id: new ObjectId(dm),
+      });
+      console.log(userInfo);
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          processed: true,
+          dmEmail: userInfo.email,
+        },
+      };
+      const result = await ordersCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      console.log(result);
+      res.send(result);
+    });
     //success route
     app.post("/payment/success", async (req, res) => {
       const { transactionId } = req.query;
