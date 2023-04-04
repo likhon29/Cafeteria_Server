@@ -144,7 +144,7 @@ async function run() {
     // get food item list
     app.get("/food", async (req, res) => {
       const query = {};
-      const foods = await foodCollection.find(query).toArray();
+      const foods = await foodCollection.find(query).sort({ _id: 1 }).toArray();
       res.send(foods);
     });
     app.get("/food/title/:title", async (req, res) => {
@@ -160,6 +160,13 @@ async function run() {
       const type = req.params.type;
       const query = { type: type };
       const foods = await foodCollection.find(query).toArray();
+      res.send(foods);
+    });
+    app.get("/menu/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      console.log(query);
+      const foods = await foodCollection.findOne(query);
       res.send(foods);
     });
 
@@ -192,16 +199,19 @@ async function run() {
     app.get("/orders", async (req, res) => {
       const query = {};
       // console.log(query);
-      const orders = await ordersCollection.find(query).toArray();
+      const orders = await ordersCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
       res.send(orders);
     });
 
     app.get("/manager/orders", async (req, res) => {
-      
-      const query = {
-       
-      };
-      const orders = await ordersCollection.find(query).toArray();
+      const query = {};
+      const orders = await ordersCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
       console.log(orders);
       res.send(orders);
     });
@@ -227,13 +237,27 @@ async function run() {
       const orders = await ordersCollection.findOne(query);
       res.send(orders);
     });
+    app.get("/reservation/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {
+        _id: new ObjectId(id),
+      };
+
+      const orders = await bookingCollection.findOne(query);
+      console.log(orders);
+
+      res.send(orders);
+    });
     app.get("/orders/:email", async (req, res) => {
       const email = req.params.email;
       const query = {
         customerEmail: email,
       };
       // console.log(query);
-      const orders = await ordersCollection.find(query).toArray();
+      const orders = await ordersCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
       res.send(orders);
     });
     // reservations
@@ -288,82 +312,109 @@ async function run() {
         transactionId,
         paid: false,
         pmr: false,
+        processed: false,
       });
     });
 
-    //  all reservation of a particular user
     app.get("/reservations", async (req, res) => {
+      const query = {};
+
+      // console.log(query);
+      const orders = await bookingCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
+      res.send(orders);
+    });
+    //  all reservation of a particular user
+    app.get("/my-reservations", async (req, res) => {
       const email = req.query.email;
       const query = {
         customerEmail: email,
       };
 
       // console.log(query);
-      const orders = await bookingCollection.find(query).toArray();
+      const orders = await bookingCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
       res.send(orders);
+      console.log(orders);
     });
 
     // booking-payment
-    app.post("/booking-payment", async (req, res) => {
-      const bookingId = req.body.id;
-      const bookingInfo = await bookingCollection.findOne({
-        _id: new ObjectId(bookingId),
-      });
-      const transactionId = new ObjectId().toString();
-      const data = {
-        total_amount: bookingInfo.price,
-        currency: "BDT",
-        tran_id: transactionId, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/booking-payment/success?transactionId=${transactionId}`,
-        fail_url: "http://localhost:3030/fail",
-        cancel_url: "http://localhost:3030/cancel",
-        ipn_url: "http://localhost:3030/ipn",
-        shipping_method: "Courier",
-        product_name: "Cafe Reservation",
-        product_category: "Reservation",
-        product_profile: "Regular",
-        cus_name: bookingInfo?.customerName,
-        cus_email: bookingInfo?.customerEmail,
-        cus_add1: bookingInfo?.shippingAddress,
-        cus_add2: "JU",
-        cus_city: "JU",
-        cus_state: "JU",
-        cus_postcode: "1000",
-        cus_country: "Bangladesh",
-        cus_phone: bookingInfo?.customerPhone,
-        cus_fax: bookingInfo?.customerPhone,
-        ship_name: bookingInfo?.customerName,
-        ship_add1: "Dhaka",
-        ship_add2: "Dhaka",
-        ship_city: "Dhaka",
-        ship_state: "Dhaka",
-        ship_postcode: 1000,
-        ship_country: "Bangladesh",
-      };
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
-      sslcz.init(data).then((apiResponse) => {
-        // Redirect the user to payment gateway
-        let GatewayPageURL = apiResponse.GatewayPageURL;
-        res.send({ url: GatewayPageURL });
-      });
+    // app.post("/booking-payment", async (req, res) => {
+    //   const bookingId = req.body.id;
+    //   const bookingInfo = await bookingCollection.findOne({
+    //     _id: new ObjectId(bookingId),
+    //   });
+    //   const transactionId = new ObjectId().toString();
+    //   const data = {
+    //     total_amount: bookingInfo.price,
+    //     currency: "BDT",
+    //     tran_id: transactionId, // use unique tran_id for each api call
+    //     success_url: `http://localhost:5000/booking-payment/success?transactionId=${transactionId}`,
+    //     fail_url: "http://localhost:3030/fail",
+    //     cancel_url: "http://localhost:3030/cancel",
+    //     ipn_url: "http://localhost:3030/ipn",
+    //     shipping_method: "Courier",
+    //     product_name: "Cafe Reservation",
+    //     product_category: "Reservation",
+    //     product_profile: "Regular",
+    //     cus_name: bookingInfo?.customerName,
+    //     cus_email: bookingInfo?.customerEmail,
+    //     cus_add1: bookingInfo?.shippingAddress,
+    //     cus_add2: "JU",
+    //     cus_city: "JU",
+    //     cus_state: "JU",
+    //     cus_postcode: "1000",
+    //     cus_country: "Bangladesh",
+    //     cus_phone: bookingInfo?.customerPhone,
+    //     cus_fax: bookingInfo?.customerPhone,
+    //     ship_name: bookingInfo?.customerName,
+    //     ship_add1: "Dhaka",
+    //     ship_add2: "Dhaka",
+    //     ship_city: "Dhaka",
+    //     ship_state: "Dhaka",
+    //     ship_postcode: 1000,
+    //     ship_country: "Bangladesh",
+    //   };
+    //   const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+    //   sslcz.init(data).then((apiResponse) => {
+    //     // Redirect the user to payment gateway
+    //     let GatewayPageURL = apiResponse.GatewayPageURL;
+    //     res.send({ url: GatewayPageURL });
+    //   });
 
-      const result = await bookingCollection.updateOne(
-        { bookingId },
-        { $set: { paid: false, transactionId } }
-      );
+    //   const result = await bookingCollection.updateOne(
+    //     { bookingId },
+    //     { $set: { paid: false, transactionId } }
+    //   );
 
-      // const result = await bookingCollection.updateOne({
+    //   // const result = await bookingCollection.updateOne({
 
-      //   ,
-      //   paid: false,
-      // });
-      // res.send(result);
-    });
+    //   //   ,
+    //   //   paid: false,
+    //   // });
+    //   // res.send(result);
+    // });
 
-    app.delete("/reservation/:id", async (req, res) => {
+    // app.delete("/reservation/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   const query = { _id: ObjectId(id) };
+    //   const result = await reservationCollection.deleteOne(query);
+    //   res.send(result);
+    // });
+    // app.delete("/food/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   const query = { _id:new ObjectId(id) };
+    //   const result = await foodCollection.deleteOne(query);
+    //   res.send(result);
+    // });
+    app.delete("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
-      const query = { _id: ObjectId(id) };
-      const result = await reservationCollection.deleteOne(query);
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -441,6 +492,22 @@ async function run() {
       );
       res.send(result);
     });
+    app.put("/cashier/reservations/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          pmr: true,
+        },
+      };
+      const result = await bookingCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
 
     // assign delivery man
 
@@ -467,6 +534,81 @@ async function run() {
       );
       console.log(result);
       res.send(result);
+    });
+
+    app.put("/manager/reservations", async (req, res) => {
+      const id = req.query.id;
+      const processed = req.query.processed;
+      console.log(id, processed);
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          processed: processed,
+        },
+      };
+      const result = await bookingCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      console.log(result);
+      res.send(result);
+    });
+
+    app.put("/delivery-man/orders", async (req, res) => {
+      const id = req.query.id;
+
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          picked: true,
+        },
+      };
+      const result = await ordersCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
+    app.put("/delivery-man/orders/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          delivered: true,
+        },
+      };
+      const result = await ordersCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
+    // app.get("/deliveryMan/",async(res, res)=>{
+    //     // const dmEmail= req.query.dmEmail;
+    //     // const query={dmEmail};
+    //     // const orders = await ordersCollection.find(query).toArray();
+    //     //  res.send(orders);
+
+    //   })
+
+    app.get("/delivery-man/order-list", async (req, res) => {
+      const dmEmail = req.query.dmEmail;
+      console.log(dmEmail);
+      const query = {
+        dmEmail: dmEmail,
+      };
+      const orders = await ordersCollection
+        .find(query)
+        .sort({ _id: -1 })
+        .toArray();
+      res.send(orders);
     });
     //success route
     app.post("/payment/success", async (req, res) => {
